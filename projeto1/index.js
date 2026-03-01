@@ -20,9 +20,6 @@ const tensorPessoas = pessoasTreinamentoReais
 const tensorCategoriaPessoa = pessoasTreinamentoReais
     .map((pessoa) => encodeCategoria(pessoa.categoria))
 
-
-
-
 const inputTensorX = tf.tensor2d(tensorPessoas)
 const outTensorY = tf.tensor2d(tensorCategoriaPessoa)
 
