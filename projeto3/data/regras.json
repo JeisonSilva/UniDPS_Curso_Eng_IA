@@ -1,0 +1,102 @@
+{
+  "cenario": "Aprovacao de Credito Pessoal",
+  "descricao": "Regras de negocio usadas para rotular os dados de treino. O modelo aprende a replicar essas regras a partir dos exemplos.",
+
+  "campos": {
+    "score_credito": {
+      "descricao": "Pontuacao de credito do cliente (0 a 1000)",
+      "tipo": "numerico",
+      "normalizacao": "score / 1000",
+      "impacto": "Maior score indica historico de pagamentos positivo. Principal indicador de aprovacao."
+    },
+    "renda_mensal": {
+      "descricao": "Renda mensal bruta em reais",
+      "tipo": "numerico",
+      "normalizacao": "renda / renda_maxima_do_dataset",
+      "impacto": "Renda mais alta aumenta capacidade de pagamento."
+    },
+    "divida_atual": {
+      "descricao": "Total de dividas ativas em reais",
+      "tipo": "numerico",
+      "normalizacao": "divida / renda_mensal  (razao divida/renda)",
+      "impacto": "Divida alta em relacao a renda reduz chance de aprovacao."
+    },
+    "meses_empregado": {
+      "descricao": "Tempo de emprego continuo em meses",
+      "tipo": "numerico",
+      "normalizacao": "meses / 240  (maximo considerado: 20 anos)",
+      "impacto": "Emprego estavel por mais tempo reduz risco de inadimplencia."
+    },
+    "historico_inadimplencia": {
+      "descricao": "1 se ja teve inadimplencia registrada, 0 se nunca teve",
+      "tipo": "binario",
+      "normalizacao": "usar o valor diretamente (0 ou 1)",
+      "impacto": "Inadimplencia anterior e forte indicador de rejeicao."
+    },
+    "idade": {
+      "descricao": "Idade do cliente em anos",
+      "tipo": "numerico",
+      "normalizacao": "idade / 100",
+      "impacto": "Fator secundario. Idades entre 30-55 tendem a ter perfis mais estaveis."
+    }
+  },
+
+  "regras_de_aprovacao": [
+    {
+      "descricao": "Score alto com baixa divida",
+      "condicao": "score_credito >= 650 E divida_atual / renda_mensal < 0.35",
+      "resultado": "aprovado"
+    },
+    {
+      "descricao": "Score muito alto garante aprovacao mesmo com alguma divida",
+      "condicao": "score_credito >= 800",
+      "resultado": "aprovado"
+    },
+    {
+      "descricao": "Score baixo com inadimplencia rejeita",
+      "condicao": "score_credito < 500 E historico_inadimplencia = 1",
+      "resultado": "reprovado"
+    },
+    {
+      "descricao": "Score muito baixo rejeita independente de outros fatores",
+      "condicao": "score_credito < 350",
+      "resultado": "reprovado"
+    },
+    {
+      "descricao": "Emprego curto com score medio rejeita",
+      "condicao": "meses_empregado < 10 E score_credito < 600",
+      "resultado": "reprovado"
+    },
+    {
+      "descricao": "Renda muito baixa com divida rejeita",
+      "condicao": "renda_mensal < 2000 E divida_atual > 1000",
+      "resultado": "reprovado"
+    }
+  ],
+
+  "features_para_o_modelo": [
+    "score_credito normalizado",
+    "renda_mensal normalizada",
+    "razao divida/renda",
+    "meses_empregado normalizados",
+    "historico_inadimplencia (0 ou 1)",
+    "idade normalizada"
+  ],
+
+  "label": {
+    "campo": "aprovado",
+    "valores": {
+      "1": "credito aprovado",
+      "0": "credito reprovado"
+    },
+    "tipo_problema": "classificacao binaria"
+  },
+
+  "dicas_de_estudo": [
+    "Observe que o campo 'score_credito' e o mais correlacionado com o resultado. Tente treinar o modelo SEM ele e veja como a acuracia cai.",
+    "Experimente adicionar mais exemplos de casos 'aprovado' com score medio (600-700) para ver se o modelo aprende a fronteira de decisao.",
+    "A razao divida/renda e uma feature derivada. Criar features derivadas e uma tecnica chamada 'feature engineering'.",
+    "Tente mudar a arquitetura da rede (mais ou menos neuronios) e observe o impacto na loss final.",
+    "Com apenas 30 exemplos, o modelo pode memorizar os dados (overfitting). Adicione mais clientes no JSON para testar isso."
+  ]
+}
