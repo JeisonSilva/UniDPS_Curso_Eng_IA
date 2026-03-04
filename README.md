@@ -27,6 +27,7 @@ Quando disponivel, cada projeto possui um `README.md` proprio com contexto, obje
 | Projeto | README | Descricao |
 |---|---|---|
 | Projeto 1 | [projeto1/README.md](./projeto1/README.md) | Exemplo introdutorio de classificacao com TensorFlow.js em Node.js, usando dados ficticios para treinar um modelo capaz de prever categorias como `premium`, `medium` e `basic`. |
+| Projeto 2 | [projeto2/README.md](./projeto2/README.md) | Sistema de recomendacao de produtos com TensorFlow.js, treinando uma rede neural binaria para prever probabilidade de compra e gerar recomendacoes personalizadas por usuario. |
 
 ## Tecnologias exploradas
 
