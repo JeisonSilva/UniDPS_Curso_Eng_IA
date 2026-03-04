@@ -78,6 +78,33 @@ function criarModelo(quantidadeFeatures) {
     return model;
 }
 
+async function recomendarProdutos(usuario, produtos, model, categoriasMap, coresMap, valorMaximo, topN = 5) {
+    const produtosComprados = new Set(usuario.produtos);
+    const candidatos = produtos.filter((produto) => !produtosComprados.has(produto.id));
+
+    if (candidatos.length === 0) {
+        return [];
+    }
+
+    const features = candidatos.map((produto) => [
+        normalizarIdade(usuario.idade),
+        normalizarValor(produto.valor, valorMaximo),
+        normalizarIndice(categoriasMap.get(produto.categoria), categoriasMap.size),
+        normalizarIndice(coresMap.get(produto.color), coresMap.size)
+    ]);
+
+    const tensor = tf.tensor2d(features);
+    const previsoes = model.predict(tensor);
+    const scores = await previsoes.data();
+    tensor.dispose();
+    previsoes.dispose();
+
+    return candidatos
+        .map((produto, i) => ({ produto, score: scores[i] }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, topN);
+}
+
 async function main() {
     const produtos = await readJson('./data/produtos.json');
     const usuarios = await readJson('./data/usuarios.json');
@@ -159,46 +186,27 @@ async function main() {
         }
     });
 
-    const usuarioTeste = usuarios[0];
-    const produtoTeste = produtosPorId.get(10);
-    const exemploTeste = criarExemploNormalizado(
-        usuarioTeste,
-        produtoTeste,
-        categoriasMap,
-        coresMap,
-        valorMaximo,
-        0
-    );
-    const featureTeste = [[
-        exemploTeste.idadeNormalizada,
-        exemploTeste.valorNormalizado,
-        exemploTeste.categoriaNormalizada,
-        exemploTeste.corNormalizada
-    ]];
-    const tensorTeste = tf.tensor2d(featureTeste);
-    const previsao = model.predict(tensorTeste);
-    const probabilidadeCompra = (await previsao.data())[0];
-
-
-    console.log('Categorias mapeadas:', Object.fromEntries(categoriasMap));
-    console.log('Cores mapeadas:', Object.fromEntries(coresMap));
-    console.log('Primeiros exemplos de treino:', exemplosTreino.slice(0, 10));
-    console.log('Primeiras features:', features.slice(0, 5));
-    console.log('Primeiras labels:', labels.slice(0, 5));
     console.log('Total de exemplos:', exemplosTreino.length);
     console.log('Total de positivos:', labels.filter((label) => label === 1).length);
     console.log('Total de negativos:', labels.filter((label) => label === 0).length);
-    console.log('Shape inputTensor:', inputTensor.shape);
-    console.log('Shape outputTensor:', outputTensor.shape);
-    console.log('Modelo compilado com sucesso');
     model.summary();
-    console.log('Ultima loss:', history.history.loss.at(-1));
-    console.log('Ultima accuracy:', history.history.acc?.at(-1) ?? history.history.accuracy?.at(-1));
-    console.log('Usuario teste:', usuarioTeste.nome);
-    console.log('Produto teste:', produtoTeste.nome);
-    console.log('Feature de teste:', featureTeste[0]);
-    console.log('Probabilidade prevista de compra:', probabilidadeCompra);
-    console.log('Backend TensorFlow:', tf.getBackend());
+    console.log(`Treino concluido — loss: ${history.history.loss.at(-1).toFixed(4)}, accuracy: ${(history.history.acc?.at(-1) ?? history.history.accuracy?.at(-1)).toFixed(4)}`);
+
+    console.log('\n=== Recomendacoes por usuario ===');
+    for (const usuario of usuarios) {
+        const recomendacoes = await recomendarProdutos(
+            usuario,
+            produtos,
+            model,
+            categoriasMap,
+            coresMap,
+            valorMaximo,
+            3
+        );
+
+        const nomes = recomendacoes.map((r) => `${r.produto.nome} (${(r.score * 100).toFixed(1)}%)`);
+        console.log(`${usuario.nome}: ${nomes.join(' | ')}`);
+    }
 }
 
 await main();
