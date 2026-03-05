@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "TF_CPP_MIN_LOG_LEVEL=2 node index.js",
-    "treinar": "TF_CPP_MIN_LOG_LEVEL=2 node index.js treinar"
+    "treinar": "TF_CPP_MIN_LOG_LEVEL=2 node index.js treinar",
+    "teste": "TF_CPP_MIN_LOG_LEVEL=2 node teste.js"
   },
   "keywords": [],
   "author": "",

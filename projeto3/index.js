@@ -117,7 +117,7 @@ async function treinar() {
     const outputY = tf.tensor2d(labels.map(l => [l]))
 
     await model.fit(inputX, outputY, {
-        epochs: 150,
+        epochs: 300,
         callbacks: {
             onEpochEnd: (epoch, logs) => {
                 console.log(`Epoca ${epoch + 1}: loss=${logs.loss.toFixed(4)} acc=${logs.acc?.toFixed(4)}`);
