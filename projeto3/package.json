@@ -1,0 +1,19 @@
+{
+  "name": "projeto3",
+  "version": "1.0.0",
+  "description": "Cenario de estudo para aprender como **definir regras**, **preparar dados de treino em JSON** e **treinar um modelo de classificacao binaria** com TensorFlow.js.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "TF_CPP_MIN_LOG_LEVEL=2 node index.js",
+    "treinar": "TF_CPP_MIN_LOG_LEVEL=2 node index.js treinar",
+    "teste": "TF_CPP_MIN_LOG_LEVEL=2 node teste.js",
+    "web": "http-server . -p 8080 --cors -o /web/index.html"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tensorflow/tfjs-node": "^4.22.0"
+  }
+}

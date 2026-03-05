@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analise de Credito</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      width: 100%;
+      max-width: 520px;
+      padding: 36px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 28px;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #222;
+      transition: border-color 0.2s;
+      background: #fafafa;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #4f6ef7;
+      background: #fff;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 13px;
+      background: #4f6ef7;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+    }
+
+    button:hover { background: #3a57e8; }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+
+    #resultado {
+      margin-top: 24px;
+      border-radius: 10px;
+      padding: 20px 24px;
+      display: none;
+    }
+
+    #resultado.aprovado {
+      background: #e8f8f0;
+      border: 1.5px solid #34c77b;
+    }
+
+    #resultado.reprovado {
+      background: #fdecea;
+      border: 1.5px solid #e84545;
+    }
+
+    #resultado .decisao {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    #resultado.aprovado .decisao { color: #1e9e5e; }
+    #resultado.reprovado .decisao { color: #c0392b; }
+
+    #resultado .prob {
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    .barra-fundo {
+      background: #e0e0e0;
+      border-radius: 6px;
+      height: 8px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .barra-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.6s ease;
+    }
+
+    #resultado.aprovado .barra-fill { background: #34c77b; }
+    #resultado.reprovado .barra-fill { background: #e84545; }
+
+    #status {
+      font-size: 0.8rem;
+      color: #aaa;
+      margin-top: 16px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Analise de Credito</h1>
+    <p class="subtitle">Preencha os dados do cliente para obter a analise</p>
+
+    <div class="grid">
+      <div class="field">
+        <label>Score de Credito (0-1000)</label>
+        <input type="number" id="score_credito" min="0" max="1000" placeholder="Ex: 720" />
+      </div>
+      <div class="field">
+        <label>Renda Mensal (R$)</label>
+        <input type="number" id="renda_mensal" min="0" placeholder="Ex: 5000" />
+      </div>
+      <div class="field">
+        <label>Divida Atual (R$)</label>
+        <input type="number" id="divida_atual" min="0" placeholder="Ex: 800" />
+      </div>
+      <div class="field">
+        <label>Meses Empregado</label>
+        <input type="number" id="meses_empregado" min="0" placeholder="Ex: 36" />
+      </div>
+      <div class="field">
+        <label>Idade</label>
+        <input type="number" id="idade" min="18" max="100" placeholder="Ex: 35" />
+      </div>
+      <div class="field">
+        <label>Historico Inadimplencia</label>
+        <select id="historico_inadimplencia">
+          <option value="0">Nao possui</option>
+          <option value="1">Possui</option>
+        </select>
+      </div>
+    </div>
+
+    <button id="btn" onclick="analisar()">Analisar</button>
+
+    <div id="resultado">
+      <div class="decisao" id="decisao-texto"></div>
+      <div class="prob" id="prob-texto"></div>
+      <div class="barra-fundo">
+        <div class="barra-fill" id="barra" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <div id="status">Carregando modelo...</div>
+  </div>
+
+  <script>
+    let model = null
+    let clientes = null
+
+    async function init() {
+      try {
+        const [modelLoaded, clientesRes] = await Promise.all([
+          tf.loadLayersModel('../modelo/model.json'),
+          fetch('../data/clientes.json').then(r => r.json())
+        ])
+        model = modelLoaded
+        clientes = clientesRes
+        document.getElementById('status').textContent = 'Modelo pronto'
+        document.getElementById('btn').disabled = false
+      } catch (e) {
+        document.getElementById('status').textContent = 'Erro ao carregar modelo. Treine primeiro com: npm run treinar'
+        console.error(e)
+      }
+    }
+
+    function norm(val, arr) {
+      const max = Math.max(...arr)
+      const min = Math.min(...arr)
+      return (val - min) / (max - min)
+    }
+
+    function normalizarCliente(cliente) {
+      return [
+        norm(cliente.idade,             clientes.map(c => c.idade)),
+        norm(cliente.renda_mensal,      clientes.map(c => c.renda_mensal)),
+        norm(cliente.score_credito,     clientes.map(c => c.score_credito)),
+        norm(cliente.divida_atual,      clientes.map(c => c.divida_atual)),
+        norm(cliente.meses_empregado,   clientes.map(c => c.meses_empregado)),
+        cliente.historico_inadimplencia
+      ]
+    }
+
+    function getValor(id) {
+      return parseFloat(document.getElementById(id).value)
+    }
+
+    async function analisar() {
+      if (!model || !clientes) return
+
+      const cliente = {
+        score_credito:          getValor('score_credito'),
+        renda_mensal:           getValor('renda_mensal'),
+        divida_atual:           getValor('divida_atual'),
+        meses_empregado:        getValor('meses_empregado'),
+        historico_inadimplencia: parseFloat(document.getElementById('historico_inadimplencia').value),
+        idade:                  getValor('idade')
+      }
+
+      const campos = ['score_credito', 'renda_mensal', 'divida_atual', 'meses_empregado', 'idade']
+      for (const campo of campos) {
+        if (isNaN(cliente[campo])) {
+          alert('Preencha todos os campos antes de analisar.')
+          return
+        }
+      }
+
+      const normalizado = normalizarCliente(cliente)
+      const tensor = tf.tensor2d([normalizado])
+      const previsao = model.predict(tensor)
+      const probabilidade = (await previsao.data())[0]
+      const aprovado = probabilidade >= 0.5
+
+      const resultado = document.getElementById('resultado')
+      resultado.className = aprovado ? 'aprovado' : 'reprovado'
+      resultado.style.display = 'block'
+
+      document.getElementById('decisao-texto').textContent = aprovado ? 'APROVADO' : 'REPROVADO'
+      document.getElementById('prob-texto').textContent =
+        `Probabilidade de aprovacao: ${(probabilidade * 100).toFixed(1)}%`
+      document.getElementById('barra').style.width = `${(probabilidade * 100).toFixed(1)}%`
+    }
+
+    document.getElementById('btn').disabled = true
+    init()
+  </script>
+</body>
+</html>

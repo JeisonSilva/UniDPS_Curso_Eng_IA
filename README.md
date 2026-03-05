@@ -28,6 +28,7 @@ Quando disponivel, cada projeto possui um `README.md` proprio com contexto, obje
 |---|---|---|
 | Projeto 1 | [projeto1/README.md](./projeto1/README.md) | Exemplo introdutorio de classificacao com TensorFlow.js em Node.js, usando dados ficticios para treinar um modelo capaz de prever categorias como `premium`, `medium` e `basic`. |
 | Projeto 2 | [projeto2/README.md](./projeto2/README.md) | Sistema de recomendacao de produtos com TensorFlow.js, treinando uma rede neural binaria para prever probabilidade de compra e gerar recomendacoes personalizadas por usuario. |
+| Projeto 3 | [projeto3/README.md](./projeto3/README.md) | Classificacao binaria de aprovacao de credito com rede neural treinada a partir de regras de negocio. Inclui interface web para consulta ao modelo sem necessidade de backend. |
 
 ## Tecnologias exploradas
 
