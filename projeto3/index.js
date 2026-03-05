@@ -97,53 +97,65 @@ function normalizarCliente(clientes, cliente) {
         mediaHistoricoInadimplencia]
 }
 
-async function main() {
+async function treinar() {
     const clientes = JSON.parse(await readFile('./data/clientes.json'))
     const dadosNormalizados = normalizarDados(clientes)
     const features = criarFeature(dadosNormalizados)
-    const labels = dadosNormalizados.map(n=>n.aprovado)
+    const labels = dadosNormalizados.map(n => n.aprovado)
 
-    const model = tf.sequential();
-    model.add(tf.layers.dense({inputShape: [6], units: 16, activation:"elu"}))
-    model.add(tf.layers.dense({units: 1, activation: "sigmoid"}))
-//
+    const model = tf.sequential()
+    model.add(tf.layers.dense({ inputShape: [6], units: 16, activation: "elu" }))
+    model.add(tf.layers.dense({ units: 1, activation: "sigmoid" }))
+
     model.compile({
         optimizer: "adam",
         loss: "binaryCrossentropy",
         metrics: ["accuracy"]
     })
-//
+
     const inputX = tf.tensor2d(features)
-    const outputY = tf.tensor2d(labels.map(l=>[l]))
-//
-    await model.fit(inputX, outputY,{
+    const outputY = tf.tensor2d(labels.map(l => [l]))
+
+    await model.fit(inputX, outputY, {
         epochs: 150,
-        callbacks:(epoch, logs) =>{
-            console.log(`Epoca ${epoch + 1}: loss=${logs.loss.toFixed(4)} acc=${logs.acc?.toFixed(4)}`); 
+        callbacks: {
+            onEpochEnd: (epoch, logs) => {
+                console.log(`Epoca ${epoch + 1}: loss=${logs.loss.toFixed(4)} acc=${logs.acc?.toFixed(4)}`);
+            }
         }
     })
 
-
-    const clienteNovo = {
-        score_credito: 10,
-        renda_mensal: 4800,
-        divida_atual: 100,
-        meses_empregado: 28,
-        historico_inadimplencia: 0,
-        idade: 35
-    };
-
-    const clienteNormalizado = normalizarCliente(clientes, clienteNovo)
-    const clienteTensor = tf.tensor2d([clienteNormalizado])
-    const previsao =await  model.predict(clienteTensor)
-
-    const result = (await previsao.data())[0]
-
-    return result
+    await model.save('file://./modelo')
+    console.log('Modelo salvo em ./modelo')
 }
 
+async function rodar(cliente) {
+    const clientes = JSON.parse(await readFile('./data/clientes.json'))
+    const model = await tf.loadLayersModel('file://./modelo/model.json')
 
+    const clienteNormalizado = normalizarCliente(clientes, cliente)
+    const clienteTensor = tf.tensor2d([clienteNormalizado])
+    const previsao = model.predict(clienteTensor)
 
-const resultado = await main();
-console.log(resultado)
+    const result = (await previsao.data())[0]
+    console.log(`Probabilidade de aprovação: ${(result * 100).toFixed(2)}%`)
+    console.log(`Decisão: ${result >= 0.5 ? 'APROVADO' : 'NEGADO'}`)
+}
+
+const clienteNovo = {
+    score_credito: 10,
+    renda_mensal: 4800,
+    divida_atual: 100,
+    meses_empregado: 28,
+    historico_inadimplencia: 0,
+    idade: 35
+}
+
+const modo = process.argv[2]
+
+if (modo === 'treinar') {
+    await treinar()
+} else {
+    await rodar(clienteNovo)
+}
 
