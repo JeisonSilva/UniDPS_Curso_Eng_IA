@@ -1,6 +1,6 @@
 import { loadModelAndLabels, runInference } from './model.js';
 import { preprocessImage } from './image.js';
-import { processPredictions } from './predictions.js';
+import { bestPrediction } from './predictions.js';
 
 const { model, labels } = await loadModelAndLabels();
 postMessage({ type: 'model-loaded' });
@@ -12,13 +12,14 @@ self.onmessage = async ({ data }) => {
 
     _inferring = true;
     const input = preprocessImage(data.image);
-    const { width, height } = data.image;
 
     try {
         const results = await runInference(model, input);
-        for (const prediction of processPredictions(results, labels, width, height)) {
-            postMessage({ type: 'prediction', ...prediction });
-        }
+        const prediction = bestPrediction(results, labels);
+        postMessage(prediction
+            ? { type: 'prediction', ...prediction }
+            : { type: 'idle' }
+        );
     } finally {
         _inferring = false;
     }
