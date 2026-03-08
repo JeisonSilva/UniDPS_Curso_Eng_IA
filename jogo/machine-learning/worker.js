@@ -1,105 +1,25 @@
-import * as tf from '@tensorflow/tfjs';
+import { loadModelAndLabels, runInference } from './model.js';
+import { preprocessImage } from './image.js';
+import { processPredictions } from './predictions.js';
 
-const MODEL_PATH = `yolov5n_web_model/model.json`;
-const LABELS_PATH = `yolov5n_web_model/labels.json`;
-const INPUT_MODEL_DIMENTIONS = 640
-const CLASS_THRESHOLD = 0.4
+const { model, labels } = await loadModelAndLabels();
+postMessage({ type: 'model-loaded' });
 
-let _labels = []
-let _model = null
-
-async function loadModelAndLabels() {
-    await tf.ready()
-
-    _labels = await (await fetch(LABELS_PATH)).json()
-    _model = await tf.loadGraphModel(MODEL_PATH)
-
-    const dummyInput = tf.ones(_model.inputs[0].shape)
-    await _model.executeAsync(dummyInput)
-    dummyInput.dispose()
-
-    postMessage({ type: 'model-loaded' })
-}
-
-function preprocessImage(input) {
-    return tf.tidy(() => {
-        const image = tf.browser.fromPixels(input)
-        return tf.image
-            .resizeBilinear(image,[INPUT_MODEL_DIMENTIONS, INPUT_MODEL_DIMENTIONS])
-            .div(255)
-            .expandDims(0)
-    })
-}
-
-async function runInference(tensor) {
-    const output = await _model.executeAsync(tensor)
-    tf.dispose(tensor);
-
-    const [boxes, scores, classes] = output.slice(0,3)
-    const [boxesData, scoresData, classesData] = await Promise.all(
-        [
-            boxes.data(),
-            scores.data(),
-            classes.data() 
-        ]
-    )
-
-    output.forEach(element => element.dispose());
-    return {
-        boxes: boxesData,
-        scores: scoresData,
-        classes: classesData
-    }
-}
-
-function* processPrediction({boxes, scores, classes}, width, height) {
-    for(let index = 0;index < scores.length; index++){
-        if(scores[index] < CLASS_THRESHOLD) continue
-
-         const label = _labels[classes[index]]
-
-         if(label !== 'kite') continue
-
-         let [x1,y1, x2, y2] = boxes.slice(index * 4, (index + 1) * 4)
-         x1 += width
-         x2 += width
-         y1 += height
-         y2 += height
-
-         const boxWidth = x2 - x1
-         const boxHeight = y2 - y1
-         const centerX = x1 + boxWidth / 2
-         const centerY = y1 + boxHeight / 2
-         
-         yield {
-            x: centerX,
-            y: centerY,
-            score: (scores[index] * 100).toFixed(2)
-         }
-    }
-}
-
-await loadModelAndLabels();
+let _inferring = false;
 
 self.onmessage = async ({ data }) => {
-    if (data.type !== 'predict') return
+    if (data.type !== 'predict' || _inferring) return;
 
-    if (!_model) return
+    _inferring = true;
+    const input = preprocessImage(data.image);
+    const { width, height } = data.image;
 
-    const input = preprocessImage(data.image)
-    const {width, height} = data.image
-
-    const inferenceResults = await runInference(input)   
-    
-    for(const perdiction of processPrediction(inferenceResults, width, height)){
-        postMessage({
-            type: 'prediction',
-            ...perdiction
-        });
+    try {
+        const results = await runInference(model, input);
+        for (const prediction of processPredictions(results, labels, width, height)) {
+            postMessage({ type: 'prediction', ...prediction });
+        }
+    } finally {
+        _inferring = false;
     }
-
-    
-
-    input.dispose()
 };
-
